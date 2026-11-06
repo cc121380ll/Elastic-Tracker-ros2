@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.8)
+project(elastic_tracker_bringup)
+find_package(ament_cmake REQUIRED)
+install(DIRECTORY launch config DESTINATION share/${PROJECT_NAME})
+install(PROGRAMS ../../sh_utils/retained_trigger.py ../../sh_utils/pub_triger.sh ../../sh_utils/land_triger.sh DESTINATION lib/${PROJECT_NAME})
+ament_package()

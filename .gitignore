@@ -1,0 +1,10 @@
+/build*/
+/install*/
+/log*/
+/devel/
+/.vscode/
+__pycache__/
+*.pyc
+*.pyo
+*.bag
+*.bag.active

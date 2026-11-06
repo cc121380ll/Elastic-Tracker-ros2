@@ -1,0 +1,7 @@
+<package format="3"><name>traj_opt</name><version>0.1.0</version><buildtool_depend>ament_cmake</buildtool_depend><depend>rclcpp</depend><depend>eigen</depend><export><build_type>ament_cmake</build_type></export>
+<maintainer email="jlji@zju.edu.cn">ji</maintainer>
+
+<license>GPLv3</license>
+
+<description>The traj_opt package</description>
+</package>

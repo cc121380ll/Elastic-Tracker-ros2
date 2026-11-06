@@ -1,0 +1,245 @@
+/target/mapping:
+  ros__parameters:
+    ceil: 0
+    ground: 0
+    height_max: 4.5
+    height_min: 3.5
+    inflate_size: 2
+    obstacle_number: 120
+    resolution: 0.15
+    seed: 510
+    type: 2
+    update_freq: 1.0
+    use_global_map: true
+    width_max: 1.5
+    width_min: 0.5
+    x_length: 42.0
+    y_length: 40.0
+    z_length: 5.0
+    use_sim_time: false
+    use_mask: false
+/target/odom_visualization:
+  ros__parameters:
+    robot_scale: 0.7
+    use_sim_time: false
+/target/planning:
+  ros__parameters:
+    K: 8
+    amax: 2.5
+    clearance_d: 0.2
+    debug: false
+    plan_hz: 20
+    prediction.rho_a: 1.0
+    prediction.vmax: 4.0
+    rhoA: 1000.0
+    rhoP: 10000.0
+    rhoT: 100.0
+    rhoTracking: 1000.0
+    rhoV: 1000.0
+    rhosVisibility: 10000.0
+    theta_clearance: 0.8
+    tolerance_d: 0.5
+    tracking_dist: 3.0
+    tracking_dt: 0.2
+    tracking_dur: 3.0
+    vmax: 1.5
+    fake: true
+    use_sim_time: false
+/target/so3_controller:
+  ros__parameters:
+    corrections.p: 0.0
+    corrections.r: 0.0
+    corrections.z: 0.0
+    g: 9.81
+    gains.ang.x: 0.13
+    gains.ang.y: 0.13
+    gains.ang.z: 0.1
+    gains.rot.x: 1.5
+    gains.rot.y: 1.5
+    gains.rot.z: 1.0
+    mass: 0.98
+    use_sim_time: false
+/target/so3_quadrotor:
+  ros__parameters:
+    Ixx: 0.00264
+    Iyy: 0.00264
+    Izz: 0.00496
+    arm_length: 0.26
+    g: 9.81
+    init_x: 2.0
+    init_y: 0.0
+    init_yaw: 0.0
+    init_z: 2.0
+    kf: 8.98132e-09
+    mass: 0.98
+    max_rpm: 35000.0
+    min_rpm: 1200.0
+    motor_time_constant: 0.03333
+    odom_rate: 400
+    prop_radius: 0.062
+    simulation_rate: 1000
+    use_sim_time: false
+/target/traj_server:
+  ros__parameters:
+    time_forward: 1.0
+    use_sim_time: false
+/drone0/mapping:
+  ros__parameters:
+    cam2body_R:
+    - 0.0
+    - 0.0
+    - 1.0
+    - -1.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - -1.0
+    - 0.0
+    cam2body_p:
+    - 0.0
+    - 0.0
+    - 0.05
+    cam_cx: 321.04638671875
+    cam_cy: 243.44969177246094
+    cam_fx: 387.229248046875
+    cam_fy: 387.229248046875
+    cam_height: 480
+    cam_width: 640
+    camera_range: 7.0
+    camera_rate: 30.0
+    depth_filter_margin: 2
+    depth_filter_mindist: 0.2
+    depth_filter_tolerance: 0.15
+    depth_scaling_factor: 1000.0
+    down_sample_factor: 2
+    inflate_size: 1
+    local_x: 20.0
+    local_y: 20.0
+    local_z: 5.0
+    p_def: -199
+    p_hit: 62
+    p_max: 220
+    p_min: -199
+    p_mis: 62
+    p_occ: 139
+    resolution: 0.15
+    use_sim_time: false
+    use_mask: false
+    use_global_map: false
+/drone0/odom_visualization:
+  ros__parameters:
+    robot_scale: 1.0
+    use_sim_time: false
+/drone0/pcl_render_node:
+  ros__parameters:
+    cam_cx: 321.04638671875
+    cam_cy: 243.44969177246094
+    cam_fx: 387.229248046875
+    cam_fy: 387.229248046875
+    cam_height: 480
+    cam_width: 640
+    estimation_rate: 30.0
+    sensing_horizon: 5.0
+    sensing_rate: 30.0
+    use_sim_time: false
+/drone0/planning:
+  ros__parameters:
+    K: 8
+    amax: 6.0
+    clearance_d: 0.2
+    debug: false
+    plan_hz: 20
+    prediction.rho_a: 1.0
+    prediction.vmax: 4.0
+    rhoA: 1000.0
+    rhoP: 10000.0
+    rhoT: 100.0
+    rhoTracking: 1000.0
+    rhoV: 1000.0
+    rhosVisibility: 10000.0
+    theta_clearance: 0.8
+    tolerance_d: 0.3
+    tracking_dist: 2.5
+    tracking_dt: 0.2
+    tracking_dur: 3.0
+    vmax: 3.0
+    fake: false
+    use_sim_time: false
+/drone0/so3_controller:
+  ros__parameters:
+    corrections.p: 0.0
+    corrections.r: 0.0
+    corrections.z: 0.0
+    g: 9.81
+    gains.ang.x: 0.13
+    gains.ang.y: 0.13
+    gains.ang.z: 0.1
+    gains.rot.x: 1.5
+    gains.rot.y: 1.5
+    gains.rot.z: 1.0
+    mass: 0.98
+    use_sim_time: false
+/drone0/so3_quadrotor:
+  ros__parameters:
+    Ixx: 0.00264
+    Iyy: 0.00264
+    Izz: 0.00496
+    arm_length: 0.26
+    g: 9.81
+    init_x: 0.0
+    init_y: 0.0
+    init_yaw: 0.0
+    init_z: 2.0
+    kf: 8.98132e-09
+    mass: 0.98
+    max_rpm: 35000.0
+    min_rpm: 1200.0
+    motor_time_constant: 0.03333
+    odom_rate: 400
+    prop_radius: 0.062
+    simulation_rate: 1000
+    use_sim_time: false
+/drone0/target_ekf_sim_node:
+  ros__parameters:
+    cam2body_R:
+    - 0.0
+    - 0.0
+    - 1.0
+    - -1.0
+    - 0.0
+    - 0.0
+    - 0.0
+    - -1.0
+    - 0.0
+    cam2body_p:
+    - 0.0
+    - 0.0
+    - 0.1
+    cam_cx: 322.83899
+    cam_cy: 234.54992
+    cam_fx: 346.74048
+    cam_fy: 349.12708
+    cam_height: 480
+    cam_width: 640
+    pitch_thr: 37.0
+    use_sim_time: false
+/drone0/traj_server:
+  ros__parameters:
+    time_forward: 1.0
+    use_sim_time: false
+/mockamap_node:
+  ros__parameters:
+    ceil: 0
+    ground: 0
+    height_max: 4.5
+    height_min: 3.5
+    obstacle_number: 120
+    resolution: 0.1
+    seed: 510
+    type: 2
+    update_freq: 1.0
+    width_max: 1.5
+    width_min: 0.5
+    x_length: 42
+    y_length: 40
+    z_length: 5

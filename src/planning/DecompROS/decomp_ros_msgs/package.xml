@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="3"><name>decomp_ros_interfaces</name><version>0.1.0</version>
+
+
+<buildtool_depend>ament_cmake</buildtool_depend><build_depend>rosidl_default_generators</build_depend>
+<exec_depend>rosidl_default_runtime</exec_depend>
+<depend>std_msgs</depend>
+<depend>geometry_msgs</depend>
+<depend>nav_msgs</depend>
+<depend>builtin_interfaces</depend>
+<member_of_group>rosidl_interface_packages</member_of_group>
+<export><build_type>ament_cmake</build_type></export>
+<maintainer email="jane.doe@example.com">Jane Doe</maintainer>
+<maintainer email="sikang@seas.upenn.edu">sikang</maintainer>
+
+<license>TODO</license>
+
+<description>The decomp_ros_msgs package</description>
+</package>

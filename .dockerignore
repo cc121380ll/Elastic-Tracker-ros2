@@ -1,0 +1,9 @@
+.git
+.vscode
+build*
+install*
+log*
+devel
+**/__pycache__
+*.bag
+*.bag.active

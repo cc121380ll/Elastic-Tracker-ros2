@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<package format="3"><name>target_ekf</name><version>0.1.0</version><buildtool_depend>ament_cmake</buildtool_depend><depend>rclcpp</depend><depend>nav_msgs</depend><depend>object_detection_interfaces</depend><depend>message_filters</depend><depend>eigen</depend><export><build_type>ament_cmake</build_type></export>
+<maintainer email="jlji@zju.edu.cn">ji</maintainer>
+
+<license>GPLv3</license>
+
+<description>The target_ekf package</description>
+</package>
