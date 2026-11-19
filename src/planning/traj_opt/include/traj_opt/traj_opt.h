@@ -44,7 +44,8 @@ class TrajOpt {
   TrajOpt(rclcpp::Node& nh);
   ~TrajOpt() {}
 
-  void setBoundConds(const Eigen::MatrixXd& iniState, const Eigen::MatrixXd& finState);
+  void setBoundConds(const Eigen::MatrixXd& iniState, const Eigen::MatrixXd& finState,
+                     bool preserve_initial_derivatives = false);
   int optimize(const double& delta = 1e-4);
   bool generate_traj(const Eigen::MatrixXd& iniState,
                      const Eigen::MatrixXd& finState,
@@ -52,12 +53,14 @@ class TrajOpt {
                      const std::vector<Eigen::Vector3d>& visible_ps,
                      const std::vector<double>& thetas,
                      const std::vector<Eigen::MatrixXd>& hPolys,
-                     Trajectory& traj);
+                     Trajectory& traj,
+                     bool preserve_initial_derivatives = false);
   bool generate_traj(const Eigen::MatrixXd& iniState,
                      const Eigen::MatrixXd& finState,
                      const std::vector<Eigen::Vector3d>& target_predcit,
                      const std::vector<Eigen::MatrixXd>& hPolys,
-                     Trajectory& traj);
+                     Trajectory& traj,
+                     bool preserve_initial_derivatives = false);
   bool generate_traj(const Eigen::MatrixXd& iniState,
                      const Eigen::MatrixXd& finState,
                      const std::vector<Eigen::MatrixXd>& hPolys,

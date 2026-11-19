@@ -6,14 +6,17 @@
 #include <quadrotor_interfaces/msg/poly_traj.hpp>
 #include <quadrotor_interfaces/msg/replan_state.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <rclcpp/create_timer.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <mapping/ros2_parameters.hpp>
 #include <std_msgs/msg/empty.hpp>
+#include <std_msgs/msg/int32.hpp>
 #include <traj_opt/traj_opt.h>
 
 #include <Eigen/Core>
 #include <atomic>
 #include <env/env.hpp>
+#include <optional>
 #include <prediction/prediction.hpp>
 #include <thread>
 #include <visualization/visualization.hpp>
@@ -31,6 +34,7 @@ class Nodelet : public rclcpp::Node {
   rclcpp::Subscription<quadrotor_interfaces::msg::OccMap3d>::SharedPtr gridmap_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_, target_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr triger_sub_, land_triger_sub_;
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr accepted_sub_, discarded_sub_;
   rclcpp::TimerBase::SharedPtr plan_timer_;
 
   rclcpp::Publisher<quadrotor_interfaces::msg::PolyTraj>::SharedPtr traj_pub_;
@@ -59,6 +63,13 @@ class Nodelet : public rclcpp::Node {
 
   Trajectory traj_poly_;
   rclcpp::Time replan_stamp_{0, 0, RCL_ROS_TIME};
+  struct ExecutionOffer {
+    int id;
+    rclcpp::Time start;
+    Trajectory trajectory;
+  };
+  std::optional<ExecutionOffer> execution_offer_;
+  double execution_handoff_lead_ = 0.0;
   int traj_id_ = 0;
   bool wait_hover_ = true;
   bool force_hover_ = true;
@@ -110,8 +121,25 @@ class Nodelet : public rclcpp::Node {
   }
 
   void triger_callback(const geometry_msgs::msg::PoseStamped::ConstSharedPtr& msgPtr) {
+    if (execution_handoff_lead_ > 0.0) {
+      execution_offer_.reset();
+      force_hover_ = true;
+      wait_hover_ = true;
+    }
     goal_ << msgPtr->pose.position.x, msgPtr->pose.position.y, 0.9;
     triger_received_ = true;
+  }
+
+  void resolve_offer(int id, bool accepted) {
+    if (!execution_offer_ || execution_offer_->id != id) {
+      return;
+    }
+    if (accepted) {
+      traj_poly_ = std::move(execution_offer_->trajectory);
+      replan_stamp_ = execution_offer_->start;
+      force_hover_ = false;
+    }
+    execution_offer_.reset();
   }
 
   void land_triger_callback(const geometry_msgs::msg::PoseStamped::ConstSharedPtr& msgPtr) {
@@ -143,6 +171,9 @@ class Nodelet : public rclcpp::Node {
   // NOTE main callback
   void plan_timer_callback() {
     heartbeat_pub_->publish(std_msgs::msg::Empty());
+    if (execution_offer_) {
+      return;
+    }
     if (!odom_received_ || !map_received_) {
       return;
     }
@@ -251,9 +282,17 @@ class Nodelet : public rclcpp::Node {
     // NOTE replan state
     Eigen::MatrixXd iniState;
     iniState.setZero(3, 3);
-    rclcpp::Time replan_stamp = now() + rclcpp::Duration::from_seconds(0.03);
+    const bool execution_handoff = execution_handoff_lead_ > 0.0;
+    const double lead = execution_handoff ? execution_handoff_lead_ : 0.03;
+    rclcpp::Time replan_stamp = now() + rclcpp::Duration::from_seconds(lead);
     double replan_t = (replan_stamp - replan_stamp_).seconds();
-    if (force_hover_ || replan_t > traj_poly_.getTotalDuration()) {
+    const bool within_previous = !force_hover_ && replan_t <= traj_poly_.getTotalDuration();
+    if (execution_handoff && !force_hover_ && (!within_previous || replan_t <= 0.0)) {
+      // The adapter stops on exhausted acknowledged coverage.
+      return;
+    }
+    const bool preserve_derivatives = execution_handoff && within_previous;
+    if (!within_previous) {
       // should replan from the hover state
       iniState.col(0) = odom_p;
       iniState.col(1) = odom_v;
@@ -345,11 +384,12 @@ class Nodelet : public rclcpp::Node {
       // rclcpp::Time t_front4 = now();
       if (land_triger_received_) {
         finState.col(0) = target_predcit.back();
-        generate_new_traj_success = trajOptPtr_->generate_traj(iniState, finState, target_predcit, hPolys, traj);
+        generate_new_traj_success = trajOptPtr_->generate_traj(iniState, finState, target_predcit,
+                                                               hPolys, traj, preserve_derivatives);
       } else {
         generate_new_traj_success = trajOptPtr_->generate_traj(iniState, finState,
                                                                target_predcit, visible_ps, thetas,
-                                                               hPolys, traj);
+                                                               hPolys, traj, preserve_derivatives);
       }
       // rclcpp::Time t_end4 = now();
       // double t_optimization = (t_end4 - t_front4).seconds() * 1e3;
@@ -376,11 +416,13 @@ class Nodelet : public rclcpp::Node {
       replanState_pub_->publish(replanStateMsg_);
     }
     if (valid) {
-      force_hover_ = false;
+      if (execution_handoff && replan_stamp <= now()) {
+        return;
+      }
       RCLCPP_WARN(rclcpp::get_logger("elastic_tracker"), "[planner] REPLAN SUCCESS");
       replanStateMsg_.state = 0;
       replanState_pub_->publish(replanStateMsg_);
-      Eigen::Vector3d dp = target_p + target_v * 0.03 - iniState.col(0);
+      Eigen::Vector3d dp = target_p + target_v * lead - iniState.col(0);
       // NOTE : if the drone is going to unknown areas, watch that direction
       // Eigen::Vector3d un_known_p = traj.getPos(1.0);
       // if (gridmapPtr_->isUnKnown(un_known_p)) {
@@ -390,15 +432,20 @@ class Nodelet : public rclcpp::Node {
       if (land_triger_received_) {
         yaw = 2 * std::atan2(target_q.z(), target_q.w());
       }
+      if (execution_handoff) {
+        execution_offer_ = ExecutionOffer{traj_id_, replan_stamp, traj};
+      } else {
+        traj_poly_ = traj;
+        replan_stamp_ = replan_stamp;
+        force_hover_ = false;
+      }
       pub_traj(traj, yaw, replan_stamp);
-      traj_poly_ = traj;
-      replan_stamp_ = replan_stamp;
     } else if (force_hover_) {
       RCLCPP_ERROR(rclcpp::get_logger("elastic_tracker"), "[planner] REPLAN FAILED, HOVERING...");
       replanStateMsg_.state = 1;
       replanState_pub_->publish(replanStateMsg_);
       return;
-    } else if (validcheck(traj_poly_, replan_stamp_)) {
+    } else if (!validcheck(traj_poly_, replan_stamp_)) {
       force_hover_ = true;
       RCLCPP_FATAL(get_logger(), "[planner] EMERGENCY STOP!!!");
       replanStateMsg_.state = 2;
@@ -711,8 +758,11 @@ class Nodelet : public rclcpp::Node {
   bool validcheck(const Trajectory& traj, const rclcpp::Time& t_start, const double& check_dur = 1.0) {
     double t0 = (now() - t_start).seconds();
     t0 = t0 > 0.0 ? t0 : 0.0;
-    double delta_t = check_dur < traj.getTotalDuration() ? check_dur : traj.getTotalDuration();
-    for (double t = t0; t < t0 + delta_t; t += 0.01) {
+    const double end = std::min(t0 + check_dur, traj.getTotalDuration());
+    if (t0 >= traj.getTotalDuration()) {
+      return false;
+    }
+    for (double t = t0; t < end; t += 0.01) {
       Eigen::Vector3d p = traj.getPos(t);
       if (gridmapPtr_->isOccupied(p)) {
         return false;
@@ -730,6 +780,10 @@ class Nodelet : public rclcpp::Node {
     elastic_tracker::required_parameter(nh, "tolerance_d", tolerance_d_);
     elastic_tracker::required_parameter(nh, "debug", debug_);
     elastic_tracker::required_parameter(nh, "fake", fake_);
+    execution_handoff_lead_ = declare_parameter<double>("execution_handoff_lead_s", 0.0);
+    if (execution_handoff_lead_ > 0.0 && (fake_ || debug_)) {
+      throw std::invalid_argument("Execution handoff requires the live tracking planner");
+    }
 
     gridmapPtr_ = std::make_shared<mapping::OccGridMap>();
     envPtr_ = std::make_shared<env::Env>(nh, gridmapPtr_);
@@ -740,9 +794,19 @@ class Nodelet : public rclcpp::Node {
     heartbeat_pub_ = nh.create_publisher<std_msgs::msg::Empty>("~/heartbeat", rclcpp::QoS(10).reliable());
     traj_pub_ = nh.create_publisher<quadrotor_interfaces::msg::PolyTraj>("~/trajectory", rclcpp::QoS(1).reliable());
     replanState_pub_ = nh.create_publisher<quadrotor_interfaces::msg::ReplanState>("~/replanState", rclcpp::QoS(1).reliable());
+    if (execution_handoff_lead_ > 0.0) {
+      const auto qos = rclcpp::QoS(10).reliable();
+      accepted_sub_ = nh.create_subscription<std_msgs::msg::Int32>("~/execution_accepted", qos,
+          [this](const std_msgs::msg::Int32& msg) { resolve_offer(msg.data, true); });
+      discarded_sub_ = nh.create_subscription<std_msgs::msg::Int32>("~/execution_discarded", qos,
+          [this](const std_msgs::msg::Int32& msg) { resolve_offer(msg.data, false); });
+    }
 
+    // Use the same clock for triggering replans and stamping their trajectories.
+    const auto plan_period = rclcpp::Duration::from_seconds(1.0 / plan_hz);
     if (debug_) {
-      plan_timer_ = nh.create_wall_timer(std::chrono::duration<double>(1.0 / plan_hz), std::bind(&Nodelet::debug_timer_callback, this));
+      plan_timer_ = rclcpp::create_timer(&nh, nh.get_clock(), plan_period,
+                                         std::bind(&Nodelet::debug_timer_callback, this));
       // TODO read debug data from files
       wr_msg::readMsg(replanStateMsg_, declare_parameter<std::string>("debug_file", ""));
       inflate_gridmap_pub_ = nh.create_publisher<quadrotor_interfaces::msg::OccMap3d>("~/gridmap_inflate", rclcpp::QoS(10).reliable().transient_local());
@@ -750,9 +814,11 @@ class Nodelet : public rclcpp::Node {
       prePtr_->setMap(*gridmapPtr_);
       std::cout << "plan state: " << replanStateMsg_.state << std::endl;
     } else if (fake_) {
-      plan_timer_ = nh.create_wall_timer(std::chrono::duration<double>(1.0 / plan_hz), std::bind(&Nodelet::fake_timer_callback, this));
+      plan_timer_ = rclcpp::create_timer(&nh, nh.get_clock(), plan_period,
+                                         std::bind(&Nodelet::fake_timer_callback, this));
     } else {
-      plan_timer_ = nh.create_wall_timer(std::chrono::duration<double>(1.0 / plan_hz), std::bind(&Nodelet::plan_timer_callback, this));
+      plan_timer_ = rclcpp::create_timer(&nh, nh.get_clock(), plan_period,
+                                         std::bind(&Nodelet::plan_timer_callback, this));
     }
     gridmap_sub_ = nh.create_subscription<quadrotor_interfaces::msg::OccMap3d>("~/gridmap_inflate", rclcpp::QoS(1).reliable().transient_local(), std::bind(&Nodelet::gridmap_callback, this, std::placeholders::_1));
     odom_sub_ = nh.create_subscription<nav_msgs::msg::Odometry>("~/odom", rclcpp::QoS(10).reliable(), std::bind(&Nodelet::odom_callback, this, std::placeholders::_1));

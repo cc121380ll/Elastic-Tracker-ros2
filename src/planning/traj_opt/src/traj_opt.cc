@@ -274,15 +274,18 @@ TrajOpt::TrajOpt(rclcpp::Node& nh) : nh_(nh) {
 }
 
 void TrajOpt::setBoundConds(const Eigen::MatrixXd& iniState,
-                            const Eigen::MatrixXd& finState) {
+                            const Eigen::MatrixXd& finState,
+                            bool preserve_initial_derivatives) {
   Eigen::MatrixXd initS = iniState;
   Eigen::MatrixXd finalS = finState;
-  double tempNorm = initS.col(1).norm();
-  initS.col(1) *= tempNorm > vmax_ ? (vmax_ / tempNorm) : 1.0;
-  tempNorm = finalS.col(1).norm();
+  if (!preserve_initial_derivatives) {
+    const double velocity = initS.col(1).norm();
+    const double acceleration = initS.col(2).norm();
+    initS.col(1) *= velocity > vmax_ ? (vmax_ / velocity) : 1.0;
+    initS.col(2) *= acceleration > amax_ ? (amax_ / acceleration) : 1.0;
+  }
+  double tempNorm = finalS.col(1).norm();
   finalS.col(1) *= tempNorm > vmax_ ? (vmax_ / tempNorm) : 1.0;
-  tempNorm = initS.col(2).norm();
-  initS.col(2) *= tempNorm > amax_ ? (amax_ / tempNorm) : 1.0;
   tempNorm = finalS.col(2).norm();
   finalS.col(2) *= tempNorm > amax_ ? (amax_ / tempNorm) : 1.0;
 
@@ -329,7 +332,8 @@ bool TrajOpt::generate_traj(const Eigen::MatrixXd& iniState,
                             const std::vector<Eigen::Vector3d>& visible_ps,
                             const std::vector<double>& thetas,
                             const std::vector<Eigen::MatrixXd>& hPolys,
-                            Trajectory& traj) {
+                            Trajectory& traj,
+                            bool preserve_initial_derivatives) {
   landing_ = false;
   cfgHs_ = hPolys;
   if (cfgHs_.size() == 1) {
@@ -360,7 +364,7 @@ bool TrajOpt::generate_traj(const Eigen::MatrixXd& iniState,
   tracking_visible_ps_ = visible_ps;
   tracking_thetas_ = thetas;
 
-  setBoundConds(iniState, finState);
+  setBoundConds(iniState, finState, preserve_initial_derivatives);
   x_[dim_p_ + dim_t_] = 0.1;
   int opt_ret = optimize();
   if (opt_ret < 0) {
@@ -382,7 +386,8 @@ bool TrajOpt::generate_traj(const Eigen::MatrixXd& iniState,
                             const Eigen::MatrixXd& finState,
                             const std::vector<Eigen::Vector3d>& target_predcit,
                             const std::vector<Eigen::MatrixXd>& hPolys,
-                            Trajectory& traj) {
+                            Trajectory& traj,
+                            bool preserve_initial_derivatives) {
   landing_ = true;
   cfgHs_ = hPolys;
   if (cfgHs_.size() == 1) {
@@ -411,7 +416,7 @@ bool TrajOpt::generate_traj(const Eigen::MatrixXd& iniState,
 
   tracking_ps_ = target_predcit;
 
-  setBoundConds(iniState, finState);
+  setBoundConds(iniState, finState, preserve_initial_derivatives);
   x_[dim_p_ + dim_t_] = 0.1;
   int opt_ret = optimize();
   if (opt_ret < 0) {
